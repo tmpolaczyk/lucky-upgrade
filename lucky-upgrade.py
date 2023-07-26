@@ -17,8 +17,12 @@ def main():
     #upgrade_polkadot()
     #upgrade_cumulus()
     #upgrade_frontier()
+    # nimbus not needed, replaced by moonkit
     #upgrade_nimbus()
+    #upgrade_moonkit()
     update_tanssi_cargo_lock("../tanssi/Cargo.lock")
+    # Use moonkit instead of nimbus
+    #use_forked_deps("../tanssi", "https://github.com/moondance-labs/nimbus", "https://github.com/moondance-labs/moonkit", "tanssi-polkadot-v0.9.43")
     return
 
 def setup_remote_all_repos():
@@ -32,6 +36,8 @@ def setup_remote_all_repos():
     setup_remote("../frontier", "moondance", "git@github.com:moondance-labs/frontier.git")
     setup_remote("../nimbus", "purestake", "https://github.com/PureStake/nimbus")
     setup_remote("../nimbus", "moondance", "git@github.com:moondance-labs/nimbus.git")
+    setup_remote("../moonkit", "moonsong", "https://github.com/Moonsong-Labs/moonkit")
+    setup_remote("../moonkit", "moondance", "git@github.com:moondance-labs/moonkit.git")
 
 def setup_remote(path, remote_name, remote_url):
     r = subprocess.run(["./setup_remote.sh", path, remote_name, remote_url], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -71,6 +77,9 @@ def frontier_cherry_picks():
     return []
 
 def nimbus_cherry_picks():
+    return []
+
+def moonkit_cherry_picks():
     return []
 
 def git_fetch(path, remote_name):
@@ -371,6 +380,32 @@ def upgrade_nimbus():
             git_commit_amend("../nimbus")
     git_push_set_upstream("../nimbus", "moondance", "tanssi-polkadot-v0.9.43")
 
+def upgrade_moonkit():
+    check_unstaged_changes("../moonkit")
+    git_fetch("../moonkit", "moonsong")
+    git_fetch("../moonkit", "moondance")
+    # starting from upstream/main
+    git_checkout("../moonkit", "moonsong/moonbeam-polkadot-v0.9.43")
+    git_create_branch("../moonkit", "tanssi-polkadot-v0.9.43")
+    # update deps to use forked repo
+    def forked_deps():
+        use_forked_deps("../moonkit", "https://github.com/paritytech/substrate", "https://github.com/moondance-labs/substrate", "tanssi-polkadot-v0.9.43")
+        use_forked_deps("../moonkit", "https://github.com/paritytech/polkadot", "https://github.com/moondance-labs/polkadot", "tanssi-polkadot-v0.9.43")
+        use_forked_deps("../moonkit", "https://github.com/paritytech/cumulus", "https://github.com/moondance-labs/cumulus", "tanssi-polkadot-v0.9.43")
+        use_forked_deps("../moonkit", "https://github.com/moonbeam-foundation/substrate", "https://github.com/moondance-labs/substrate", "tanssi-polkadot-v0.9.43")
+        use_forked_deps("../moonkit", "https://github.com/moonbeam-foundation/polkadot", "https://github.com/moondance-labs/polkadot", "tanssi-polkadot-v0.9.43")
+        use_forked_deps("../moonkit", "https://github.com/moonbeam-foundation/cumulus", "https://github.com/moondance-labs/cumulus", "tanssi-polkadot-v0.9.43")
+    forked_deps()
+    if has_unstaged_changes("../moonkit"):
+        git_commit("../moonkit", "Use tanssi substrate fork")
+    # apply cherry-picks
+    for c in moonkit_cherry_picks():
+        git_cherry_pick("../moonkit", c)
+        forked_deps()
+        if has_unstaged_changes("../moonkit"):
+            git_commit_amend("../moonkit")
+    git_push_set_upstream("../moonkit", "moondance", "tanssi-polkadot-v0.9.43")
+
 def search_and_replace_cargo_lock(path, url, new_commit_hash):
     escaped_url = re.escape(url)
     pattern = rf'source = "git\+{escaped_url}#(\w+)"'
@@ -389,6 +424,7 @@ def search_and_replace_cargo_lock(path, url, new_commit_hash):
     return num
 
 def update_tanssi_cargo_lock(path):
+    """
     url = "https://github.com/moondance-labs/substrate?branch=tanssi-polkadot-v0.9.43"
     new_commit_hash = git_branch_commit_hash("../substrate", "tanssi-polkadot-v0.9.43")
     num = search_and_replace_cargo_lock(path, url, new_commit_hash)
@@ -407,6 +443,10 @@ def update_tanssi_cargo_lock(path):
 
     url = "https://github.com/moondance-labs/nimbus?branch=tanssi-polkadot-v0.9.43"
     new_commit_hash = git_branch_commit_hash("../nimbus", "tanssi-polkadot-v0.9.43")
+    num = search_and_replace_cargo_lock(path, url, new_commit_hash)
+    """
+    url = "https://github.com/moondance-labs/moonkit?branch=tanssi-polkadot-v0.9.43"
+    new_commit_hash = git_branch_commit_hash("../moonkit", "tanssi-polkadot-v0.9.43")
     num = search_and_replace_cargo_lock(path, url, new_commit_hash)
 
 
