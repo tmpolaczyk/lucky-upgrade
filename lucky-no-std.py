@@ -11,13 +11,6 @@ from simple_term_menu import TerminalMenu
 # rg "source = \"git\+" Cargo.lock | sort -u
 
 def main():
-    # need manual setup: clone all repos
-    #setup_remote_all_repos()
-    #upgrade_substrate()
-    #upgrade_polkadot()
-    #upgrade_cumulus()
-    #upgrade_frontier()
-    #upgrade_nimbus()
     #update_tanssi_cargo_lock("../tanssi/Cargo.lock")
     #ensure_default_features_false("../moonbeam")
     #ensure_default_features_false_at_root("../moonkit")

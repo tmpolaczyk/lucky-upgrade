@@ -11,14 +11,10 @@ from simple_term_menu import TerminalMenu
 # rg "source = \"git\+" Cargo.lock | sort -u
 
 def main():
-    # need manual setup: clone all repos
+    # need to run this setup once, will clone any missing repos to ../repo-name
     #setup_remote_all_repos()
-    #upgrade_substrate()
-    #upgrade_polkadot()
-    #upgrade_cumulus()
     #upgrade_frontier()
-    # nimbus not needed, replaced by moonkit
-    #upgrade_nimbus()
+    #upgrade_polkadot_sdk()
     upgrade_moonkit()
     #update_tanssi_cargo_lock("../tanssi/Cargo.lock")
     # Use moonkit instead of nimbus
@@ -26,16 +22,13 @@ def main():
     return
 
 def setup_remote_all_repos():
-    setup_remote("../substrate", "parity", "https://github.com/paritytech/substrate")
-    setup_remote("../substrate", "moondance", "git@github.com:moondance-labs/substrate.git")
-    setup_remote("../polkadot", "parity", "https://github.com/paritytech/polkadot")
-    setup_remote("../polkadot", "moondance", "git@github.com:moondance-labs/polkadot.git")
-    setup_remote("../cumulus", "parity", "https://github.com/paritytech/cumulus")
-    setup_remote("../cumulus", "moondance", "git@github.com:moondance-labs/cumulus.git")
+    print("Setting up the remotes in all repos, this might take a while...")
+    # TODO: rewrite setup_remote.sh in python so we can print progress in real time,
+    # currently this just freezes and it may clone the repos in a different folder from what the user wants
+    setup_remote("../polkadot-sdk", "parity", "https://github.com/paritytech/polkadot-sdk")
+    setup_remote("../polkadot-sdk", "moondance", "git@github.com:moondance-labs/polkadot-sdk.git")
     setup_remote("../frontier", "parity", "https://github.com/paritytech/frontier")
     setup_remote("../frontier", "moondance", "git@github.com:moondance-labs/frontier.git")
-    setup_remote("../nimbus", "purestake", "https://github.com/PureStake/nimbus")
-    setup_remote("../nimbus", "moondance", "git@github.com:moondance-labs/nimbus.git")
     setup_remote("../moonkit", "moonsong", "https://github.com/Moonsong-Labs/moonkit")
     setup_remote("../moonkit", "moondance", "git@github.com:moondance-labs/moonkit.git")
 
@@ -48,20 +41,13 @@ def setup_remote(path, remote_name, remote_url):
         print(f"{path} setup_remote: {out}")
     assert exit_code == 0
 
-def substrate_cherry_picks():
-    return [
-        #"ff4688db0c59bcf3b29848a3e6bbc1750098ebf6"
-        "9202622403b4ecb4949ba48a3f8ba117d2f3b9bd"
-    ]
-
-def polkadot_cherry_picks():
-    return [
-        "27b78f58bdc35f1b0162007efabd0ffb0ed23327"
-    ]
-
-def cumulus_cherry_picks():
+def polkadot_sdk_cherry_picks():
     # Copied from
     # git log --pretty=oneline
+    # The idea is to automatically detect the cherry-picks by looking at the previous release branch,
+    # and asking the user for confirmation
+    # But for now you can just paste the needed cherry-picks here:
+    # (will be applied from bottom to top)
     raw_git_log = """
 b07401a7018fc3c267dae0ea4098b2e3645de762 (HEAD -> tanssi-polkadot-v0.9.43, moondance/tanssi-polkadot-v0.9.43, polkadot-v0.9.43) Add set_current_relay_chain_state method for benchmarks
 9938b4428a4e96ead68e8c5b1ca5da3bfa14f572 Send Reinitialize instead of Initialize
@@ -75,9 +61,6 @@ b07401a7018fc3c267dae0ea4098b2e3645de762 (HEAD -> tanssi-polkadot-v0.9.43, moond
     return commits
 
 def frontier_cherry_picks():
-    return []
-
-def nimbus_cherry_picks():
     return []
 
 def moonkit_cherry_picks():
@@ -284,70 +267,35 @@ def git_branch_commit_hash(path, branch_name):
     assert exit_code == 0
     return out.strip()
 
-def upgrade_substrate():
-    check_unstaged_changes("../substrate")
-    git_fetch("../substrate", "parity")
-    git_fetch("../substrate", "moondance")
-    git_checkout("../substrate", "parity/polkadot-v1.0.0")
-    git_create_branch("../substrate", "tanssi-polkadot-v1.0.0")
-    # apply cherry-picks
-    for c in substrate_cherry_picks():
-        git_cherry_pick("../substrate", c)
-    git_push_set_upstream("../substrate", "moondance", "tanssi-polkadot-v1.0.0")
+def upgrade_polkadot_sdk():
+    tanssi_branch_name = "tanssi-polkadot-v1.1.0"
+    check_unstaged_changes("../polkadot-sdk")
+    git_fetch("../polkadot-sdk", "parity")
+    git_fetch("../polkadot-sdk", "moondance")
+    # starting from upstream/main
+    git_checkout("../polkadot-sdk", "parity/moonbeam-polkadot-v1.1.0")
+    git_create_branch("../polkadot-sdk", "tanssi-polkadot-v1.1.0")
 
-def upgrade_polkadot():
-    check_unstaged_changes("../polkadot")
-    git_fetch("../polkadot", "parity")
-    git_fetch("../polkadot", "moondance")
-    git_checkout("../polkadot", "parity/release-v1.0.0")
-    git_create_branch("../polkadot", "tanssi-polkadot-v1.0.0")
-    # update deps to use forked repo
-    def forked_deps():
-        use_forked_deps("../polkadot", "https://github.com/paritytech/substrate", "https://github.com/moondance-labs/substrate", "tanssi-polkadot-v1.0.0")
-    forked_deps()
-    if has_unstaged_changes("../polkadot"):
-        git_commit("../polkadot", "Use tanssi substrate fork")
     # apply cherry-picks
-    for c in polkadot_cherry_picks():
-        git_cherry_pick("../polkadot", c)
+    for c in polkadot_sdk_cherry_picks():
+        git_cherry_pick("../polkadot-sdk", c)
         forked_deps()
-        if has_unstaged_changes("../polkadot"):
-            git_commit_amend("../polkadot")
-    git_push_set_upstream("../polkadot", "moondance", "tanssi-polkadot-v1.0.0")
-
-def upgrade_cumulus():
-    check_unstaged_changes("../cumulus")
-    git_fetch("../cumulus", "parity")
-    git_fetch("../cumulus", "moondance")
-    git_checkout("../cumulus", "parity/polkadot-v1.0.0")
-    git_create_branch("../cumulus", "tanssi-polkadot-v1.0.0")
-    # update deps to use forked repo
-    def forked_deps():
-        use_forked_deps("../cumulus", "https://github.com/paritytech/substrate", "https://github.com/moondance-labs/substrate", "tanssi-polkadot-v1.0.0")
-        use_forked_deps("../cumulus", "https://github.com/paritytech/polkadot", "https://github.com/moondance-labs/polkadot", "tanssi-polkadot-v1.0.0")
-    forked_deps()
-    if has_unstaged_changes("../cumulus"):
-        git_commit("../cumulus", "Use tanssi substrate fork")
-    # apply cherry-picks
-    for c in cumulus_cherry_picks():
-        git_cherry_pick("../cumulus", c)
-        forked_deps()
-        if has_unstaged_changes("../cumulus"):
-            git_commit_amend("../cumulus")
-    git_push_set_upstream("../cumulus", "moondance", "tanssi-polkadot-v1.0.0")
+        if has_unstaged_changes("../polkadot-sdk"):
+            git_commit_amend("../polkadot-sdk")
+    git_push_set_upstream("../polkadot-sdk", "moondance", tanssi_branch_name)
 
 def upgrade_frontier():
     check_unstaged_changes("../frontier")
     git_fetch("../frontier", "parity")
     git_fetch("../frontier", "moondance")
     # frontier PR not merged yet, but we can start from that branch
-    #upstream_branch_name = git_fetch_pr("../frontier", "parity", 1078)
-    #git_checkout("../frontier", upstream_branch_name)
-    git_checkout("../frontier", "parity/polkadot-v1.0.0")
-    git_create_branch("../frontier", "tanssi-polkadot-v1.0.0")
+    upstream_branch_name = git_fetch_pr("../frontier", "parity", 1201)
+    git_checkout("../frontier", upstream_branch_name)
+    #git_checkout("../frontier", "parity/polkadot-v1.1.0")
+    git_create_branch("../frontier", "tanssi-polkadot-v1.1.0")
     # update deps to use forked repo
     def forked_deps():
-        use_forked_deps("../frontier", "https://github.com/paritytech/substrate", "https://github.com/moondance-labs/substrate", "tanssi-polkadot-v1.0.0")
+        use_forked_deps("../frontier", "https://github.com/paritytech/polkadot-sdk", "https://github.com/moondance-labs/polkadot-sdk", "tanssi-polkadot-v1.1.0")
     forked_deps()
     if has_unstaged_changes("../frontier"):
         git_commit("../frontier", "Use tanssi substrate fork")
@@ -357,48 +305,20 @@ def upgrade_frontier():
         forked_deps()
         if has_unstaged_changes("../frontier"):
             git_commit_amend("../frontier")
-    git_push_set_upstream("../frontier", "moondance", "tanssi-polkadot-v1.0.0")
-
-def upgrade_nimbus():
-    tanssi_branch_name = "tanssi-polkadot-v1.0.0"
-    check_unstaged_changes("../nimbus")
-    git_fetch("../nimbus", "purestake")
-    git_fetch("../nimbus", "moondance")
-    # starting from upstream/main
-    git_checkout("../nimbus", "1168c153f3113c7f32750c37c367675abaad62ec")
-    git_create_branch("../nimbus", tanssi_branch_name)
-    # update deps to use forked repo
-    def forked_deps():
-        use_forked_deps("../nimbus", "https://github.com/paritytech/substrate", "https://github.com/moondance-labs/substrate", tanssi_branch_name)
-        use_forked_deps("../nimbus", "https://github.com/paritytech/polkadot", "https://github.com/moondance-labs/polkadot", tanssi_branch_name)
-        use_forked_deps("../nimbus", "https://github.com/paritytech/cumulus", "https://github.com/moondance-labs/cumulus", tanssi_branch_name)
-    forked_deps()
-    if has_unstaged_changes("../nimbus"):
-        git_commit("../nimbus", "Use tanssi substrate fork")
-    # apply cherry-picks
-    for c in nimbus_cherry_picks():
-        git_cherry_pick("../nimbus", c)
-        forked_deps()
-        if has_unstaged_changes("../nimbus"):
-            git_commit_amend("../nimbus")
-    git_push_set_upstream("../nimbus", "moondance", tanssi_branch_name)
+    git_push_set_upstream("../frontier", "moondance", "tanssi-polkadot-v1.1.0")
 
 def upgrade_moonkit():
-    tanssi_branch_name = "tanssi-polkadot-v1.0.0"
+    tanssi_branch_name = "tanssi-polkadot-v1.1.0"
     check_unstaged_changes("../moonkit")
     git_fetch("../moonkit", "moonsong")
     git_fetch("../moonkit", "moondance")
     # starting from upstream/main
-    git_checkout("../moonkit", "moonsong/moonbeam-polkadot-v1.0.0")
-    git_create_branch("../moonkit", "tanssi-polkadot-v1.0.0")
+    git_checkout("../moonkit", "moonsong/moonbeam-polkadot-v1.1.0")
+    git_create_branch("../moonkit", "tanssi-polkadot-v1.1.0")
     # update deps to use forked repo
     def forked_deps():
-        use_forked_deps("../moonkit", "https://github.com/paritytech/substrate", "https://github.com/moondance-labs/substrate", tanssi_branch_name)
-        use_forked_deps("../moonkit", "https://github.com/paritytech/polkadot", "https://github.com/moondance-labs/polkadot", tanssi_branch_name)
-        use_forked_deps("../moonkit", "https://github.com/paritytech/cumulus", "https://github.com/moondance-labs/cumulus", tanssi_branch_name)
-        use_forked_deps("../moonkit", "https://github.com/moonbeam-foundation/substrate", "https://github.com/moondance-labs/substrate", tanssi_branch_name)
-        use_forked_deps("../moonkit", "https://github.com/moonbeam-foundation/polkadot", "https://github.com/moondance-labs/polkadot", tanssi_branch_name)
-        use_forked_deps("../moonkit", "https://github.com/moonbeam-foundation/cumulus", "https://github.com/moondance-labs/cumulus", tanssi_branch_name)
+        use_forked_deps("../moonkit", "https://github.com/paritytech/polkadot-sdk", "https://github.com/moondance-labs/polkadot-sdk", tanssi_branch_name)
+        use_forked_deps("../moonkit", "https://github.com/moonbeam-foundation/polkadot-sdk", "https://github.com/moondance-labs/polkadot-sdk", tanssi_branch_name)
     forked_deps()
     if has_unstaged_changes("../moonkit"):
         git_commit("../moonkit", "Use tanssi substrate fork")
@@ -449,11 +369,14 @@ def update_tanssi_cargo_lock(path):
     new_commit_hash = git_branch_commit_hash("../nimbus", "tanssi-polkadot-v0.9.43")
     num = search_and_replace_cargo_lock(path, url, new_commit_hash)
     """
+
+    """
     #url = "https://github.com/moondance-labs/moonkit?branch=tanssi-polkadot-v0.9.43"
     #new_commit_hash = git_branch_commit_hash("../moonkit", "tanssi-polkadot-v0.9.43")
     url = "https://github.com/moondance-labs/moonkit?branch=tomasz-pallet-migrations-cleanup-tanssi"
     new_commit_hash = git_branch_commit_hash("../moonkit", "tomasz-pallet-migrations-cleanup-tanssi")
     num = search_and_replace_cargo_lock(path, url, new_commit_hash)
+    """
 
 
 def use_forked_deps(path, upstream_url, fork_url, fork_branch):

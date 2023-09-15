@@ -5,10 +5,17 @@ if [ $# -ne 3 ]; then
     exit 1
 fi
 
-# Move to project dir
-cd $1
 remote_name=$2
 remote_url=$3
+
+if [ ! -d $1 ]; then
+	echo "$1 directory does not exist, cloning from $remote_url"
+	# Directory does not exist, clone from remote_url
+	git clone $remote_url $1
+fi
+
+# Move to project dir
+cd $1
 
 parity_set=$(git remote get-url $remote_name)
 if [ $? -ne 0 ]; then
