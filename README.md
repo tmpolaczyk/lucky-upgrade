@@ -1,4 +1,4 @@
-Automatically upgrade substrate-based Rust repos.
+Tool to automatically upgrade substrate-based Rust repos.
 
 # Install
 
@@ -24,3 +24,6 @@ Uncomment the `setup_remote_all_repos` function in `main()` and run:
 
 There is no CLI yet, so just uncomment the functions you want to run in `main()` and run `./lucky_upgrade.py`.
 
+# Linter
+
+There is also a work in progress linter called `lucky_linter.py`, it can detect some toml mistakes such as not using `workspace = true`, but it is far from ready.
